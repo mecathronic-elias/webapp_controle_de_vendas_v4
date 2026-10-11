@@ -34,8 +34,8 @@ pre{white-space:pre-wrap;font:13px/1.5 ui-monospace,monospace;background:var(--p
 .md{background:var(--cd);padding:20px;border-radius:18px;max-width:380px;width:100%}
 .sc{overflow-x:auto;max-height:50vh}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:4px 6px;border-bottom:1px solid var(--bd);text-align:left}
 .warn{background:var(--pe);padding:10px;border-radius:12px;margin-bottom:10px;font-weight:600}
-.ctr{text-align:center}.pago{color:var(--ok)}.pend{color:var(--er)}
-</style></head><body><div id="app"></div>
+.sy{font-size:12px;text-align:center;padding:4px;color:var(--mu)}.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.mb{background:var(--pe);border-radius:14px;padding:10px;display:flex;flex-direction:column}.mb b{font-size:1.1rem}.ctr{text-align:center}.pago{color:var(--ok)}.pend{color:var(--er)}
+</style></head><body><div id="sy" class="sy"></div><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s),app=$('#app');
 const K={C:'CLIENTES',P:'PRODUTOS',V:'VENDAS',G:'PAGAMENTOS'};
@@ -44,8 +44,32 @@ const MF=['valor_unitario','preco_unitario','valor_total_item','valor_total_vend
 const mem={},st={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}};
 let db={C:[],P:[],V:[],G:[]};
 for(const k in K)try{db[k]=JSON.parse(st.get(K[k])||'[]')}catch(e){}
-db.P.forEach(p=>{if('preco' in p){p.valor_unitario=p.preco;delete p.preco}if(p.quantidade==null)p.quantidade=0});
-const save=()=>{for(const k in K)st.set(K[k],JSON.stringify(db[k]))};
+const norm=()=>{for(const k in K)if(!Array.isArray(db[k]))db[k]=[];db.P.forEach(p=>{if('preco' in p){p.valor_unitario=p.preco;delete p.preco}if(p.quantidade==null)p.quantidade=0})};norm();
+const SY={on:false,pw:st.get('sync_pw')||'',rev:+st.get('sync_rev')||0,dirty:st.get('sync_dirty')=='1',t:null,busy:false,again:false};
+const saveLocal=()=>{for(const k in K)st.set(K[k],JSON.stringify(db[k]))};
+const save=()=>{saveLocal();SY.dirty=true;st.set('sync_dirty','1');clearTimeout(SY.t);SY.t=setTimeout(()=>push(),600)};
+const sbar=(m,c)=>{const e=$('#sy');if(e){e.textContent=m;e.style.color=c||''}};
+const api=(m,body)=>fetch('/api/data',{method:m,headers:{'content-type':'application/json','x-auth':SY.pw},body:body&&JSON.stringify(body)});
+const askPw=msg=>new Promise(r=>{const d=document.createElement('div');d.className='mo';d.innerHTML=`<div class=md><h3>🔒 Acesso</h3><p>${msg}</p><input type=password id=pw placeholder="Senha"><button class="pri big" id=okpw>Entrar</button></div>`;document.body.appendChild(d);$('#okpw').onclick=()=>{const v=$('#pw').value;d.remove();r(v)}});
+function adopt(j){db=j.data;norm();saveLocal();SY.rev=j.rev;SY.dirty=false;st.set('sync_rev',j.rev);st.set('sync_dirty','0');sbar('☁️ Sincronizado');if(cur!='nv')go(cur)}
+async function push(force){if(!SY.on)return;if(SY.busy){SY.again=true;return}SY.busy=true;
+try{sbar('☁️ Sincronizando…');const r=await api('PUT',{rev:force?-1:SY.rev,data:db});
+if(r.status==409){adopt(await r.json());cfm('Outro aparelho alterou os dados. Atualizamos com a versão online. Se precisar, refaça sua última alteração.','',1)}
+else if(r.ok){const j=await r.json();SY.rev=j.rev;SY.dirty=false;st.set('sync_rev',j.rev);st.set('sync_dirty','0');sbar('☁️ Sincronizado')}
+else sbar('⚠️ Falha ao sincronizar. Dados salvos neste aparelho.','var(--er)')}
+catch(e){sbar('📴 Sem conexão. Dados salvos neste aparelho.','var(--er)')}
+SY.busy=false;if(SY.again){SY.again=false;push()}}
+async function pull(){if(!/^https?:/.test(location.protocol))return sbar('Modo local (sem sincronização)');
+let r;try{r=await api('GET')}catch(e){return sbar('📴 Sem conexão. Dados salvos neste aparelho.','var(--er)')}
+if(r.status==404)return sbar('Modo local (sem servidor)');
+if(r.status==401){SY.pw=await askPw(SY.pw?'Senha incorreta. Tente novamente.':'Digite a senha de acesso.');st.set('sync_pw',SY.pw);return pull()}
+if(!r.ok)return sbar('⚠️ Servidor indisponível ou não configurado ('+r.status+')','var(--er)');
+const j=await r.json();SY.on=true;
+if(!j.data)return push(true);
+if(j.rev==SY.rev){if(SY.dirty)push();else sbar('☁️ Sincronizado');return}
+const has=Object.values(db).some(a=>a.length);
+if((SY.dirty||(SY.rev==0&&has))&&!await cfm('Os dados deste aparelho são diferentes dos dados online.<br>Usar os dados <b>online</b>?<br><small>Cancelar = enviar os dados deste aparelho e substituir os online.</small>','Usar online'))return push(true);
+adopt(j)}
 const MN=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const pad=(n,l)=>String(n).padStart(l,'0'),now=new Date();
 const mm=d=>pad(d.getMonth()+1,2)+'-'+d.getFullYear(),dstr=d=>pad(d.getDate(),2)+'-'+mm(d);
@@ -137,18 +161,20 @@ $('#out').innerHTML=m.length==1?det(m[0]):`<div class=card><h3>Selecione o clien
 function vPG(){const S=sales().filter(s=>keep.has(s[0].id_venda)||par(s[0].id_venda).some(g=>g.status!='PAGO'));
 const cm=mm(now),G=db.G.filter(g=>g.data_vencimento.slice(3)==cm),sm=f=>G.filter(f).reduce((a,g)=>a+g.valor_parcela,0);
 const VM=sales().filter(x=>x[0].data_venda.slice(3)==cm),tv=VM.reduce((t,x)=>t+x[0].valor_total_venda,0),co=r2(tv*(tv>=1000?.4:.3));
-return `<div class="card ctr" style="background:var(--l)"><h3>💰 Comissão de ${mon(cm)}</h3><div style="font-size:1.6rem;font-weight:700">${R(co)}</div><small>${VM.length} venda(s) • total vendido ${R(tv)}<br>Alíquota do mês: ${tv>=1000?40:30}% • 30% até R$ 999,99 • 40% a partir de R$ 1.000,00 (sobre o total do mês)</small></div>`+(S.map(s=>{const a=s[0],c=cli(a.id_cliente);return `<details class=card data-v=${a.id_venda}><summary><b>${E(c.nome)}</b><span>${R(a.valor_total_venda)}</span></summary><p>WhatsApp: ${c.whatsapp}<br>Endereço: ${E(c.endereco)}<br>Venda ${a.id_venda} • ${a.data_venda}</p>${par(a.id_venda).map(g=>`<div class=fl><span>${g.numero_parcela}ª • ${R(g.valor_parcela)} • vence ${g.data_vencimento}<br><b class=${g.status=='PAGO'?'pago':'pend'}>${g.status}</b>${g.data_recebimento?' em '+g.data_recebimento:''}</span><button class="${g.status=='PAGO'?'on':''}" data-a=tg data-id=${g.id_pagamento}>✔</button></div>`).join('')}</details>`}).join('')||'<p class=mut>Nenhum pagamento em aberto.</p>')+`<div class=card><h3>Parcelas de ${mon(cm)}</h3>Recebido: <b class=pago>${R(sm(g=>g.status=='PAGO'))}</b><br>A receber: <b class=pend>${R(sm(g=>g.status!='PAGO'))}</b></div>`}
+const MP={};db.G.filter(g=>g.status!='PAGO').forEach(g=>{const m=g.data_vencimento.slice(3);MP[m]=r2((MP[m]||0)+g.valor_parcela)});const ml=Object.keys(MP).sort((a,b)=>ck(a)-ck(b));
+const pan=`<div class=card><h3>📅 A receber por mês</h3><div class=mg>${ml.map(m=>`<div class=mb><small>${mon(m)}/${m.slice(3)}${ck(m)<ck(cm)?' • em atraso':''}</small><b>${R(MP[m])}</b></div>`).join('')||'<p class=mut>Nada a receber.</p>'}</div>${ml.length?`<p style="text-align:right;margin:8px 0 0">Total a receber: <b>${R(ml.reduce((t,m)=>t+MP[m],0))}</b></p>`:''}</div>`;
+return `<div class="card ctr" style="background:var(--l)"><h3>💰 Comissão de ${mon(cm)}</h3><div style="font-size:1.6rem;font-weight:700">${R(co)}</div><small>${VM.length} venda(s) • total vendido ${R(tv)}<br>Alíquota do mês: ${tv>=1000?40:30}% • 30% até R$ 999,99 • 40% a partir de R$ 1.000,00 (sobre o total do mês)</small></div>`+pan+(S.map(s=>{const a=s[0],c=cli(a.id_cliente);return `<details class=card data-v=${a.id_venda}><summary><b>${E(c.nome)}</b><span>${R(a.valor_total_venda)}</span></summary><p>WhatsApp: ${c.whatsapp}<br>Endereço: ${E(c.endereco)}<br>Venda ${a.id_venda} • ${a.data_venda}</p>${par(a.id_venda).map(g=>`<div class=fl><span>${g.numero_parcela}ª • ${R(g.valor_parcela)} • vence ${g.data_vencimento}<br><b class=${g.status=='PAGO'?'pago':'pend'}>${g.status}</b>${g.data_recebimento?' em '+g.data_recebimento:''}</span><button class="${g.status=='PAGO'?'on':''}" data-a=tg data-id=${g.id_pagamento}>✔</button></div>`).join('')}</details>`}).join('')||'<p class=mut>Nenhum pagamento em aberto.</p>')+`<div class=card><h3>Parcelas de ${mon(cm)}</h3>Recebido: <b class=pago>${R(sm(g=>g.status=='PAGO'))}</b><br>A receber: <b class=pend>${R(sm(g=>g.status!='PAGO'))}</b></div>`}
 // CARGA
-function vCA(){const cs=comps();cSel=cs.includes(cSel)?cSel:cs[0];
-return `<div class="card ctr"><p>${vig()?`Tabela vigente: <b>${mon(vig())}/${vig().slice(3)}</b>`:'Nenhuma carga de produtos vigente.'}</p><button class="pri big" data-a=up>Carregar CSV de produtos</button></div>
+function vCA(){const [nm,ny]=nextC().split('-'),cs=comps();cSel=cs.includes(cSel)?cSel:cs[0];
+return `<div class="card ctr"><p>${vig()?`Tabela vigente: <b>${mon(vig())}/${vig().slice(3)}</b>`:'Nenhuma carga de produtos vigente.'}</p><p style="margin:6px 0">Mês de competência da tabela:</p><div class=r><select id=cmm>${MN.map((n,i)=>`<option value=${i+1} ${i+1==+nm?'selected':''}>${n}</option>`).join('')}</select><select id=cmy>${[ny-1,+ny,+ny+1,+ny+2].map(y=>`<option ${y==ny?'selected':''}>${y}</option>`).join('')}</select></div><small class=mut>Sugerido: mês seguinte. Altere para corrigir ou reenviar uma tabela de outro mês.</small><button class="pri big" data-a=up>Carregar CSV de produtos</button></div>
 ${cs.length?`<div class=card><select id=cs>${cs.map(c=>`<option value=${c} ${c==cSel?'selected':''}>${mon(c)}/${c.slice(3)}</option>`).join('')}</select><div class=sc><table><tr><th>Código<th>Descrição<th>Estoque<th>Valor un.</tr>${db.P.filter(p=>p.competencia==cSel).map(p=>`<tr><td>${p.codigo}<td>${E(p.descricao)}<td>${p.quantidade}<td>${R(p.valor_unitario)}</tr>`).join('')}</table></div><button class="dng big" data-a=dc>Excluir esta tabela</button></div>`:''}
 <div class=card><h3>Exportar dados</h3>${Object.keys(K).map(k=>`<button class=li data-a=dl data-k=${k}>⬇ ${K[k]}.csv</button>`).join('')}</div>
 <div class=card><h3>Restaurar dados</h3>${Object.keys(K).map(k=>`<button class=li data-a=im data-k=${k}>⬆ Importar ${K[k]}.csv</button>`).join('')}</div>`}
 const used=c=>db.V.some(v=>db.P.some(p=>p.competencia==c&&p.codigo==v.codigo_produto&&+p.valor_unitario==+v.preco_unitario));
-async function loadP(file){const rows=parse(await file.text()),c=nextC(),mp={},dup=new Set();let skip=0;
+async function loadP(file){const rows=parse(await file.text()),c=pad($('#cmm').value,2)+'-'+$('#cmy').value,mp={},dup=new Set();let skip=0;
 for(const r of rows){const cod=(r.codigo||'').replace(/\D/g,'').padStart(8,'0'),pr=num(r.valor_unitario||r.preco||''),qt=parseInt(r.quantidade);if(!r.descricao||isNaN(pr)||isNaN(qt)||qt<0){skip++;continue}if(mp[cod])dup.add(cod);mp[cod]={codigo:cod,descricao:r.descricao,quantidade:qt,valor_unitario:pr,competencia:c}}
 const P=Object.values(mp);if(!P.length)return cfm('Nenhum produto válido. Cabeçalho esperado: codigo,descricao,quantidade,valor_unitario','',1);
-if(db.P.some(p=>p.competencia==c)&&!await cfm(`Já existe uma tabela de ${mon(c)}. Deseja substituí-la?`))return;
+if(db.P.some(p=>p.competencia==c)&&!await cfm(`Já existe uma tabela de ${mon(c)}. O estoque será substituído pelos valores do arquivo. Deseja substituí-la?`))return;
 db.P=db.P.filter(p=>p.competencia!=c).concat(P);save();cSel=c;go('ca');
 cfm(`Nova tabela adicionada. O mês da tabela é ${mon(c)}.`+(dup.size?`<br><br><b class=bad>Atenção: códigos duplicados no arquivo (valeu a última linha de cada): ${[...dup].join(', ')}</b>`:'')+(skip?`<br><br><b class=bad>${skip} linha(s) inválida(s) foram ignoradas.</b>`:''),'',1)}
 async function imp(k,file){const rows=parse(await file.text()),h=H[k];
@@ -182,5 +208,5 @@ async dc(){if(used(cSel))return cfm('Existem vendas vinculadas a esta tabela de 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b)});
 document.addEventListener('input',e=>{const t=e.target,i=t.dataset.i;if(t.classList.contains('rc')){nv.rows[i].c=t.value=t.value.replace(/\D/g,'');calc()}else if(t.classList.contains('rq')){nv.rows[i].q=t.value;calc()}else if(t.id=='q')srch()});
 document.addEventListener('change',e=>{if(e.target.id=='ms'){mSel=e.target.value;go('mv')}if(e.target.id=='cs'){cSel=e.target.value;go('ca')}});
-go('home');
+go('home');pull();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SY.on)pull()});
 </script></body></html>
