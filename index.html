@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Minhas Vendas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🌸</text></svg>">
+<style>
+*{box-sizing:border-box}
+:root{--bg:#fff5f8;--cd:#fff;--tx:#4a3445;--mu:#8c7384;--p:#e8799f;--l:#e6dbf7;--pe:#ffe3d1;--bd:#f3d3e0;--er:#e53950;--ok:#3f9d7a;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#2a2030;--cd:#392c43;--tx:#f6e9f1;--mu:#c4aebd;--l:#4a3a5c;--pe:#5a4140;--bd:#54405f}}
+:root[data-theme=dark]{--bg:#2a2030;--cd:#392c43;--tx:#f6e9f1;--mu:#c4aebd;--l:#4a3a5c;--pe:#5a4140;--bd:#54405f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif}
+#app{max-width:640px;margin:auto;padding:12px}
+h1,h2,h3{margin:.3em 0}h2{font-size:1.2rem}h3{font-size:1rem}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.nav button{flex:1 1 30%;font-size:11px;padding:9px 4px}
+button,select,input{font:inherit;border-radius:14px;border:1.5px solid var(--bd);padding:11px 12px;background:var(--cd);color:var(--tx);min-width:0}
+button{cursor:pointer;background:var(--l);font-weight:600}
+button.pri,button.on{background:var(--p);color:#fff;border-color:var(--p)}
+button.big{width:100%;padding:16px;margin-top:10px;font-size:17px}
+.dng{background:var(--pe)}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #e8799f22}
+.r{display:flex;gap:8px;margin:6px 0}.r>input{flex:1}.r>button{flex:1}
+input,select{width:100%}
+input.err{border-color:var(--er);background:#ffe3e6;color:#000}
+.bad{color:var(--er);font-weight:600}.mut{color:var(--mu);text-align:center}
+summary{display:flex;justify-content:space-between;cursor:pointer;gap:8px}
+.fl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--bd)}
+.fl button{padding:6px 10px}
+.li{display:block;width:100%;margin:4px 0;text-align:left}
+pre{white-space:pre-wrap;font:13px/1.5 ui-monospace,monospace;background:var(--pe);color:var(--tx);padding:10px;border-radius:12px;margin:6px 0}
+.home{display:flex;flex-direction:column;gap:14px;align-items:center;padding:24px 0;text-align:center}
+.home button{width:100%;max-width:360px;padding:20px;font-size:18px}
+.mo{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
+.md{background:var(--cd);padding:20px;border-radius:18px;max-width:380px;width:100%}
+.sc{overflow-x:auto;max-height:50vh}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:4px 6px;border-bottom:1px solid var(--bd);text-align:left}
+.warn{background:var(--pe);padding:10px;border-radius:12px;margin-bottom:10px;font-weight:600}
+.ctr{text-align:center}.pago{color:var(--ok)}.pend{color:var(--er)}
+</style></head><body><div id="app"></div>
+<script>
+const $=s=>document.querySelector(s),app=$('#app');
+const K={C:'CLIENTES',P:'PRODUTOS',V:'VENDAS',G:'PAGAMENTOS'};
+const H={C:['id_cliente','nome','whatsapp','endereco','data_cadastro'],P:['codigo','descricao','quantidade','valor_unitario','competencia'],V:['id_venda','data_venda','id_cliente','codigo_produto','descricao_produto','preco_unitario','quantidade','valor_total_item','valor_total_venda'],G:['id_pagamento','id_venda','numero_parcela','valor_parcela','data_vencimento','data_recebimento','status']};
+const MF=['valor_unitario','preco_unitario','valor_total_item','valor_total_venda','valor_parcela'],NF=['quantidade','numero_parcela'];
+const mem={},st={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}};
+let db={C:[],P:[],V:[],G:[]};
+for(const k in K)try{db[k]=JSON.parse(st.get(K[k])||'[]')}catch(e){}
+db.P.forEach(p=>{if('preco' in p){p.valor_unitario=p.preco;delete p.preco}if(p.quantidade==null)p.quantidade=0});
+const save=()=>{for(const k in K)st.set(K[k],JSON.stringify(db[k]))};
+const MN=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const pad=(n,l)=>String(n).padStart(l,'0'),now=new Date();
+const mm=d=>pad(d.getMonth()+1,2)+'-'+d.getFullYear(),dstr=d=>pad(d.getDate(),2)+'-'+mm(d);
+const mon=m=>MN[+m.slice(0,2)-1],ck=c=>+c.slice(3)*100+ +c.slice(0,2);
+const nextC=()=>mm(new Date(now.getFullYear(),now.getMonth()+1,1));
+const comps=()=>[...new Set(db.P.map(p=>p.competencia))].sort((a,b)=>ck(b)-ck(a));
+const vig=()=>comps()[0];
+const prod=c=>db.P.find(p=>p.competencia==vig()&&p.codigo==c);
+const R=n=>'R$ '+Number(n).toFixed(2).replace('.',',');
+const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nid=(a,f,l)=>pad(Math.max(0,...a.map(x=>+x[f]))+1,l);
+const num=s=>{s=String(s);if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');return parseFloat(s)};
+const r2=n=>Math.round(n*100)/100;
+const sales=()=>{const m={};db.V.forEach(r=>(m[r.id_venda]??=[]).push(r));return Object.values(m).sort((a,b)=>b[0].id_venda.localeCompare(a[0].id_venda))};
+const cli=id=>db.C.find(c=>c.id_cliente==id)||{nome:'?',whatsapp:'',endereco:''};
+const par=id=>db.G.filter(g=>g.id_venda==id).sort((a,b)=>a.numero_parcela-b.numero_parcela);
+const paid=id=>par(id).some(g=>g.status=='PAGO');
+const cfm=(m,ok='Confirmar',only)=>new Promise(r=>{const d=document.createElement('div');d.className='mo';d.innerHTML=`<div class=md><p>${m}</p><div class=r>${only?'':'<button data-v=0>Cancelar</button>'}<button class=pri data-v=1>${only?'OK':ok}</button></div></div>`;d.onclick=e=>{const v=e.target.dataset.v;if(v!=null){d.remove();r(v=='1')}};document.body.appendChild(d)});
+const cp=async(t,b)=>{try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}const o=b.textContent;b.textContent='✓ Copiado';setTimeout(()=>b.textContent=o,1200)};
+// CSV
+function parse(t){t=t.replace(/^\uFEFF/,'');const l=t.split('\n')[0],d=(l.match(/;/g)||[]).length>(l.match(/,/g)||[]).length?';':',';let rows=[],r=[],f='',q=false;
+for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==d){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}
+if(f||r.length){r.push(f);rows.push(r)}
+if(!rows.length)return[];const h=rows.shift().map(x=>x.trim().toLowerCase());
+return rows.filter(r=>r.some(x=>x.trim())).map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]||'').trim()])))}
+const q=v=>{v=String(v??'');return /[",\n\r;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+const toCSV=k=>'\uFEFF'+[H[k].join(','),...db[k].map(r=>H[k].map(f=>q(MF.includes(f)?Number(r[f]).toFixed(2):r[f])).join(','))].join('\r\n');
+// navegação
+const NAV=[['nv','NOVA VENDA'],['mv','MINHAS VENDAS'],['mc','MINHAS CLIENTES'],['pg','PAGAMENTOS A RECEBER'],['ca','NOVA CARGA DE PRODUTOS']];
+const nav=v=>`<div class=nav>${[['home','INÍCIO'],...NAV].filter(x=>x[0]!=v).map(([k,t])=>`<button data-a=go data-v=${k}>${t}</button>`).join('')}</div><h2>${(NAV.find(x=>x[0]==v)||[])[1]||''}</h2>`;
+let cur='home',nv,mSel,cSel,fileK;const keep=new Set();
+const resetNV=()=>nv={cli:null,rows:[{c:'',q:''}],pg:0,ed:null,old:{}};resetNV();
+const vH=()=>`<div class=home><h1>🌸 Minhas Vendas</h1>${NAV.map(([k,t],i)=>`<button class="${i%2?'':'pri'}" data-a=go data-v=${k}>${t}</button>`).join('')}<p class=mut>Faça backup com frequência: NOVA CARGA DE PRODUTOS › Exportar dados.</p></div>`;
+const VW={home:vH,nv:vNV,mv:vMV,mc:vMC,pg:vPG,ca:vCA};
+function go(v){cur=v;app.innerHTML=(v=='home'?'':nav(v))+VW[v]();if(v=='nv'&&vig()){drawRows();calc();hl()}if(v=='mc')$('#q').focus();scrollTo(0,0)}
+// cliente
+const cliInfo=c=>`<div class=warn style="font-weight:400"><b>${E(c.nome)}</b> (cód. ${c.id_cliente})<br>WhatsApp: ${c.whatsapp}<br>Endereço: ${E(c.endereco)}</div>`;
+const cForm=(c={})=>`<div class="card cf" data-id="${c.id_cliente||''}"><h3>${c.id_cliente?'Editar cliente':'Novo cadastro'}</h3><div class=r><input name=nome placeholder="Nome" value="${E(c.nome)}"></div><div class=r><input name=whatsapp inputmode=numeric placeholder="WhatsApp (só números)" value="${E(c.whatsapp)}"></div><div class=r><input name=endereco placeholder="Endereço ou link do Google Maps" value="${E(c.endereco)}"></div><div class=r><button data-a=cx>Cancelar</button><button class=pri data-a=sc>Salvar</button></div><p class=bad id=ce></p></div>`;
+function saveCli(b){const f=b.closest('.cf'),g=n=>f.querySelector(`[name=${n}]`).value.trim(),id=f.dataset.id,w=g('whatsapp').replace(/\D/g,''),nome=g('nome'),en=g('endereco'),e=f.querySelector('#ce');
+if(!nome||!w||!en){e.textContent='Preencha nome, WhatsApp e endereço.';return}
+if(db.C.some(c=>c.whatsapp==w&&c.id_cliente!=id)){e.textContent='Já existe cliente com este WhatsApp.';return}
+let c;if(id){c=db.C.find(x=>x.id_cliente==id);Object.assign(c,{nome,whatsapp:w,endereco:en})}else{c={id_cliente:nid(db.C,'id_cliente',4),nome,whatsapp:w,endereco:en,data_cadastro:dstr(new Date())};db.C.push(c)}
+save();return c}
+// NOVA VENDA
+function vNV(){if(!vig())return `<div class=card><p class=bad>Não há carga de produtos vigente. Carregue os produtos em NOVA CARGA DE PRODUTOS para cadastrar vendas.</p></div>`;
+return (nv.ed?`<div class=warn>Editando a venda ${nv.ed}</div>`:'')+`<div class=card><h3>Cliente</h3><div class=r><input id=wz inputmode=numeric placeholder="WhatsApp do cliente" value="${nv.cli?nv.cli.whatsapp:''}"><button class=pri data-a=ver style="flex:0 0 auto">Verificar</button></div><div id=cl>${nv.cli?cliInfo(nv.cli):''}</div></div>
+<div class=card><h3>Produtos</h3><div id=rows></div><div class=r><button data-a=add>+</button><button data-a=rem id=rem>−</button></div></div>
+<div class=card><h3>Resumo da venda</h3><pre id=res></pre><div id=est class=bad></div><h3>Pagamento</h3><div class=r><button data-a=p1 id=p1>1x</button><button data-a=p2 id=p2>2x</button></div><button class="pri big" data-a=cad>CADASTRAR VENDA</button></div>`}
+const drawRows=()=>{$('#rows').innerHTML=nv.rows.map((r,i)=>`<div class=r><input class=rc data-i=${i} maxlength=8 inputmode=numeric placeholder="Código (8 dígitos)" value="${E(r.c)}" style="flex:2"><input class=rq data-i=${i} type=number min=1 placeholder="Qtd" value="${E(r.q)}"></div>`).join('');$('#rem').style.display=nv.rows.length>1?'':'none'};
+const hl=()=>{$('#p1').classList.toggle('on',nv.pg==1);$('#p2').classList.toggle('on',nv.pg==2)};
+const short=()=>{const n={},o=[];nv.rows.forEach(r=>{if(look(r.c)&&r.q>0)n[r.c]=(n[r.c]||0)+ +r.q});
+for(const c in n){const p=prod(c);if(!p)continue;const av=p.quantidade+(nv.ed?db.V.filter(v=>v.id_venda==nv.ed&&v.codigo_produto==c).reduce((a,v)=>a+v.quantidade,0):0);if(n[c]>av)o.push(`${c} - ${p.descricao}: venda ${n[c]} un, estoque ${av} un`)}return o};
+const look=c=>prod(c)||nv.old[c];
+function calc(f){let tot=0,L=[];const els=document.querySelectorAll('.rc');
+nv.rows.forEach((r,i)=>{const p=look(r.c);els[i]&&els[i].classList.toggle('err',!!(r.c&&!p&&(f||r.c.length>=8)));if(p&&r.q>0){tot+=p.valor_unitario*r.q;L.push(`${r.c},${p.descricao},${r.q},${R(p.valor_unitario)},`)}});
+$('#res').textContent='codigo,descricao,quantidade,preço,\n'+L.join('\n')+'\n\nTotal  '+R(tot);$('#est').innerHTML=short().map(x=>'⚠️ Estoque insuficiente → '+E(x)).join('<br>')}
+async function cad(){
+if(!nv.cli)return cfm('Informe o cliente: use Verificar ou Novo Cadastro.','',1);
+const it=[];for(const r of nv.rows){const p=look(r.c),qt=+r.q;if(!p||!(qt>0)||qt%1){calc(true);return cfm('Confira os códigos e as quantidades de todos os produtos.','',1)}it.push({c:r.c,p,q:qt})}
+if(!nv.pg)return cfm('Escolha a forma de pagamento: 1x ou 2x.','',1);
+const sh=short();if(sh.length&&!await cfm('⚠️ Estoque insuficiente:<br>'+sh.map(E).join('<br>')+'<br><br>Deseja registrar a venda mesmo assim?'))return;
+if(nv.ed&&!await cfm('Você está editando um registro de venda!<br>Deseja salvar as alterações?'))return;
+const id=nv.ed||nid(db.V,'id_venda',6);let dv=dstr(new Date());
+if(nv.ed){db.V.filter(v=>v.id_venda==id).forEach(v=>{const p=prod(v.codigo_produto);if(p)p.quantidade+=v.quantidade});dv=db.V.find(v=>v.id_venda==id).data_venda;db.V=db.V.filter(v=>v.id_venda!=id);db.G=db.G.filter(g=>g.id_venda!=id)}
+it.forEach(x=>{const p=prod(x.c);if(p)p.quantidade=Math.max(0,p.quantidade-x.q)});
+const tot=r2(it.reduce((s,x)=>s+x.p.valor_unitario*x.q,0));
+it.forEach(x=>db.V.push({id_venda:id,data_venda:dv,id_cliente:nv.cli.id_cliente,codigo_produto:x.c,descricao_produto:x.p.descricao,preco_unitario:+x.p.valor_unitario,quantidade:x.q,valor_total_item:r2(x.p.valor_unitario*x.q),valor_total_venda:tot}));
+const cents=Math.round(tot*100),base=Math.floor(cents/nv.pg),[,m,y]=dv.split('-'),PL=[];
+for(let k=1;k<=nv.pg;k++){const v=(k==1?cents-base*(nv.pg-1):base)/100,d=new Date(+y,+m-1+k,6);db.G.push({id_pagamento:nid(db.G,'id_pagamento',6),id_venda:id,numero_parcela:k,valor_parcela:v,data_vencimento:dstr(d),data_recebimento:'',status:'PENDENTE'});PL.push(`${k}ª parcela ${R(v)} - vence em ${dstr(d)}`)}
+save();
+const t=`RECIBO - Venda ${id}\nCliente: ${nv.cli.nome}\nData: ${dv}\n\n`+it.map((x,i)=>`${i+1} - ${x.c} - ${x.p.descricao}, ${R(x.p.valor_unitario)} un, x${x.q} unidades, ${R(x.p.valor_unitario*x.q)}`).join('\n')+`\n\ntotal da compra ${R(tot)}\nPagamento em ${nv.pg}x:\n`+PL.join('\n');
+resetNV();app.innerHTML=nav('nv')+`<div class=card><h3>✅ Venda ${id} salva</h3><pre id=rt>${E(t)}</pre><button class="pri big" data-a=cpr>Copiar recibo</button><button class=big data-a=newv>Nova venda</button></div>`;scrollTo(0,0)}
+// MINHAS VENDAS
+function vMV(){mSel=mSel||mm(now);const ms=[...new Set([mm(now),...db.V.map(v=>v.data_venda.slice(3))])].sort((a,b)=>ck(b)-ck(a));
+const S=sales().filter(s=>s[0].data_venda.slice(3)==mSel),tot=S.reduce((a,s)=>a+s[0].valor_total_venda,0);
+return `<div class=card><select id=ms>${ms.map(m=>`<option value=${m} ${m==mSel?'selected':''}>${mon(m)}/${m.slice(3)}</option>`).join('')}</select><h3 style="margin-top:10px">Total vendido: ${R(tot)}</h3></div>`+(S.map(vCard).join('')||'<p class=mut>Nenhuma venda neste mês.</p>')}
+function vCard(s){const a=s[0],id=a.id_venda,pd=paid(id);
+return `<details class=card><summary><b>${E(cli(a.id_cliente).nome)}</b><span>${R(a.valor_total_venda)}</span></summary><p>Venda ${id} • ${a.data_venda}<br>Pagamento: ${par(id).length}x</p>${s.map(r=>`<div class=fl><span>${r.codigo_produto} - ${E(r.descricao_produto)}<br>${r.quantidade} × ${R(r.preco_unitario)}</span><b>${R(r.valor_total_item)}</b></div>`).join('')}${pd?'<p class=mut>Venda com pagamento registrado: bloqueada para edição e exclusão.</p>':`<div class=r><button data-a=ev data-id=${id}>Editar</button><button class=dng data-a=dv data-id=${id}>Excluir</button></div>`}</details>`}
+// CLIENTES
+function vMC(){return `<div class=card><div class=r><input id=q placeholder="Buscar por nome ou WhatsApp"></div><button class="pri big" style="margin:0" data-a=nc>+ Novo cliente</button></div><div id=out></div>`}
+const fld=(l,v)=>`<div class=fl><span><b>${l}:</b> ${E(v)}</span><button data-a=cp data-t="${E(v)}">Copiar</button></div>`;
+function det(c){const S=sales().filter(s=>s[0].id_cliente==c.id_cliente);
+return `<div class=card>${fld('Código',c.id_cliente)}${fld('Nome',c.nome)}${fld('WhatsApp',c.whatsapp)}${fld('Endereço',c.endereco)}${fld('Cadastro',c.data_cadastro)}<h3 style="margin-top:12px">Compras</h3>${S.map(s=>`<div class=fl><span>Venda ${s[0].id_venda} • ${s[0].data_venda}<br>${s.map(r=>`${r.quantidade}× ${E(r.descricao_produto)}`).join(', ')}</span><b>${R(s[0].valor_total_venda)}</b></div>`).join('')||'<p class=mut>Nenhuma compra.</p>'}<div class=r><button data-a=ec data-id=${c.id_cliente}>Editar</button><button class=dng data-a=dcl data-id=${c.id_cliente}>Excluir</button></div></div>`}
+function srch(){const qi=$('#q'),v=qi.value.trim().toLowerCase(),d=v.replace(/\D/g,'');qi.classList.remove('err');if(!v)return $('#out').innerHTML='';
+const m=db.C.filter(c=>c.nome.toLowerCase().includes(v)||(d&&c.whatsapp.includes(d)));
+if(!m.length){qi.classList.add('err');return $('#out').innerHTML=''}
+$('#out').innerHTML=m.length==1?det(m[0]):`<div class=card><h3>Selecione o cliente</h3>${m.map(c=>`<button class=li data-a=sel data-id=${c.id_cliente}>${E(c.nome)} • ${c.whatsapp}</button>`).join('')}</div>`}
+// PAGAMENTOS
+function vPG(){const S=sales().filter(s=>keep.has(s[0].id_venda)||par(s[0].id_venda).some(g=>g.status!='PAGO'));
+const cm=mm(now),G=db.G.filter(g=>g.data_vencimento.slice(3)==cm),sm=f=>G.filter(f).reduce((a,g)=>a+g.valor_parcela,0);
+const VM=sales().filter(x=>x[0].data_venda.slice(3)==cm),tv=VM.reduce((t,x)=>t+x[0].valor_total_venda,0),co=r2(tv*(tv>=1000?.4:.3));
+return `<div class="card ctr" style="background:var(--l)"><h3>💰 Comissão de ${mon(cm)}</h3><div style="font-size:1.6rem;font-weight:700">${R(co)}</div><small>${VM.length} venda(s) • total vendido ${R(tv)}<br>Alíquota do mês: ${tv>=1000?40:30}% • 30% até R$ 999,99 • 40% a partir de R$ 1.000,00 (sobre o total do mês)</small></div>`+(S.map(s=>{const a=s[0],c=cli(a.id_cliente);return `<details class=card data-v=${a.id_venda}><summary><b>${E(c.nome)}</b><span>${R(a.valor_total_venda)}</span></summary><p>WhatsApp: ${c.whatsapp}<br>Endereço: ${E(c.endereco)}<br>Venda ${a.id_venda} • ${a.data_venda}</p>${par(a.id_venda).map(g=>`<div class=fl><span>${g.numero_parcela}ª • ${R(g.valor_parcela)} • vence ${g.data_vencimento}<br><b class=${g.status=='PAGO'?'pago':'pend'}>${g.status}</b>${g.data_recebimento?' em '+g.data_recebimento:''}</span><button class="${g.status=='PAGO'?'on':''}" data-a=tg data-id=${g.id_pagamento}>✔</button></div>`).join('')}</details>`}).join('')||'<p class=mut>Nenhum pagamento em aberto.</p>')+`<div class=card><h3>Parcelas de ${mon(cm)}</h3>Recebido: <b class=pago>${R(sm(g=>g.status=='PAGO'))}</b><br>A receber: <b class=pend>${R(sm(g=>g.status!='PAGO'))}</b></div>`}
+// CARGA
+function vCA(){const cs=comps();cSel=cs.includes(cSel)?cSel:cs[0];
+return `<div class="card ctr"><p>${vig()?`Tabela vigente: <b>${mon(vig())}/${vig().slice(3)}</b>`:'Nenhuma carga de produtos vigente.'}</p><button class="pri big" data-a=up>Carregar CSV de produtos</button></div>
+${cs.length?`<div class=card><select id=cs>${cs.map(c=>`<option value=${c} ${c==cSel?'selected':''}>${mon(c)}/${c.slice(3)}</option>`).join('')}</select><div class=sc><table><tr><th>Código<th>Descrição<th>Estoque<th>Valor un.</tr>${db.P.filter(p=>p.competencia==cSel).map(p=>`<tr><td>${p.codigo}<td>${E(p.descricao)}<td>${p.quantidade}<td>${R(p.valor_unitario)}</tr>`).join('')}</table></div><button class="dng big" data-a=dc>Excluir esta tabela</button></div>`:''}
+<div class=card><h3>Exportar dados</h3>${Object.keys(K).map(k=>`<button class=li data-a=dl data-k=${k}>⬇ ${K[k]}.csv</button>`).join('')}</div>
+<div class=card><h3>Restaurar dados</h3>${Object.keys(K).map(k=>`<button class=li data-a=im data-k=${k}>⬆ Importar ${K[k]}.csv</button>`).join('')}</div>`}
+const used=c=>db.V.some(v=>db.P.some(p=>p.competencia==c&&p.codigo==v.codigo_produto&&+p.valor_unitario==+v.preco_unitario));
+async function loadP(file){const rows=parse(await file.text()),c=nextC(),mp={},dup=new Set();let skip=0;
+for(const r of rows){const cod=(r.codigo||'').replace(/\D/g,'').padStart(8,'0'),pr=num(r.valor_unitario||r.preco||''),qt=parseInt(r.quantidade);if(!r.descricao||isNaN(pr)||isNaN(qt)||qt<0){skip++;continue}if(mp[cod])dup.add(cod);mp[cod]={codigo:cod,descricao:r.descricao,quantidade:qt,valor_unitario:pr,competencia:c}}
+const P=Object.values(mp);if(!P.length)return cfm('Nenhum produto válido. Cabeçalho esperado: codigo,descricao,quantidade,valor_unitario','',1);
+if(db.P.some(p=>p.competencia==c)&&!await cfm(`Já existe uma tabela de ${mon(c)}. Deseja substituí-la?`))return;
+db.P=db.P.filter(p=>p.competencia!=c).concat(P);save();cSel=c;go('ca');
+cfm(`Nova tabela adicionada. O mês da tabela é ${mon(c)}.`+(dup.size?`<br><br><b class=bad>Atenção: códigos duplicados no arquivo (valeu a última linha de cada): ${[...dup].join(', ')}</b>`:'')+(skip?`<br><br><b class=bad>${skip} linha(s) inválida(s) foram ignoradas.</b>`:''),'',1)}
+async function imp(k,file){const rows=parse(await file.text()),h=H[k];
+if(!rows.length||h.some(x=>!(x in rows[0])))return cfm(`Arquivo inválido. Cabeçalho esperado:<br>${h.join(',')}`,'',1);
+if(!await cfm(`Importar ${K[k]}.csv substitui os dados atuais dessa tabela. Continuar?`))return;
+db[k]=rows.map(r=>{const o={};h.forEach(x=>o[x]=MF.includes(x)?num(r[x]):NF.includes(x)?+r[x]:r[x]);return o});save();go('ca');cfm('Dados importados com sucesso.','',1)}
+// ações
+const A={
+go(b){const v=b.dataset.v;if(v=='nv')resetNV();keep.clear();go(v)},
+ver(){const w=$('#wz').value.replace(/\D/g,'');if(!w)return $('#cl').innerHTML='<p class=bad>Informe o WhatsApp.</p>';const c=db.C.find(x=>x.whatsapp==w);nv.cli=c||null;$('#cl').innerHTML=(c?cliInfo(c):'<p class=bad>Cliente não cadastrado</p>')+'<button data-a=nc>Novo Cadastro</button>'},
+nc(){const f=cForm(cur=='nv'?{whatsapp:$('#wz').value.replace(/\D/g,'')}:{});if(cur=='nv'){document.querySelector('.cf')?.remove();$('#cl').insertAdjacentHTML('beforeend',f)}else $('#out').innerHTML=f},
+sc(b){const c=saveCli(b);if(!c)return;if(cur=='nv'){nv.cli=c;$('#wz').value=c.whatsapp;$('#cl').innerHTML=cliInfo(c)}else $('#out').innerHTML=det(c)},
+cx(b){cur=='nv'?b.closest('.cf').remove():srch()},
+add(){nv.rows.push({c:'',q:''});drawRows();calc()},
+rem(){nv.rows.pop();drawRows();calc()},
+p1(){nv.pg=1;hl()},p2(){nv.pg=2;hl()},cad,
+cp(b){cp(b.dataset.t,b)},cpr(b){cp($('#rt').textContent,b)},
+newv(){resetNV();go('nv')},
+sel(b){$('#out').innerHTML=det(db.C.find(c=>c.id_cliente==b.dataset.id))},
+ec(b){$('#out').innerHTML=cForm(db.C.find(c=>c.id_cliente==b.dataset.id))},
+async dcl(b){const id=b.dataset.id;if(db.V.some(v=>v.id_cliente==id))return cfm('Este cliente possui vendas registradas e não pode ser excluído.','',1);if(!await cfm('Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.'))return;db.C=db.C.filter(c=>c.id_cliente!=id);save();$('#q').value='';srch()},
+ev(b){const id=b.dataset.id,s=sales().find(x=>x[0].id_venda==id);if(paid(id))return;resetNV();nv.cli=cli(s[0].id_cliente);nv.rows=s.map(r=>({c:r.codigo_produto,q:r.quantidade}));nv.pg=par(id).length||1;nv.ed=id;s.forEach(r=>nv.old[r.codigo_produto]={descricao:r.descricao_produto,valor_unitario:r.preco_unitario});go('nv')},
+async dv(b){const id=b.dataset.id;if(paid(id))return;if(!await cfm('Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.'))return;db.V.filter(v=>v.id_venda==id).forEach(v=>{const p=prod(v.codigo_produto);if(p)p.quantidade+=v.quantidade});db.V=db.V.filter(v=>v.id_venda!=id);db.G=db.G.filter(g=>g.id_venda!=id);save();go('mv')},
+async tg(b){const g=db.G.find(x=>x.id_pagamento==b.dataset.id);
+if(g.status=='PENDENTE'){g.status='PAGO';g.data_recebimento=dstr(new Date())}else{if(!await cfm('Reverter este pagamento para PENDENTE?'))return;g.status='PENDENTE';g.data_recebimento=''}
+save();keep.add(g.id_venda);go('pg');document.querySelector(`details[data-v="${g.id_venda}"]`).open=true},
+up(){const f=document.createElement('input');f.type='file';f.accept='.csv,text/csv';f.onchange=()=>f.files[0]&&loadP(f.files[0]);f.click()},
+im(b){const f=document.createElement('input'),k=b.dataset.k;f.type='file';f.accept='.csv,text/csv';f.onchange=()=>f.files[0]&&imp(k,f.files[0]);f.click()},
+dl(b){const k=b.dataset.k,a=document.createElement('a');a.href=URL.createObjectURL(new Blob([toCSV(k)],{type:'text/csv;charset=utf-8'}));a.download=K[k]+'.csv';a.click()},
+async dc(){if(used(cSel))return cfm('Existem vendas vinculadas a esta tabela de produtos.','',1);if(!await cfm('Tem certeza que deseja excluir esta tabela de produtos? Esta ação não pode ser desfeita.'))return;db.P=db.P.filter(p=>p.competencia!=cSel);save();go('ca')}};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b)});
+document.addEventListener('input',e=>{const t=e.target,i=t.dataset.i;if(t.classList.contains('rc')){nv.rows[i].c=t.value=t.value.replace(/\D/g,'');calc()}else if(t.classList.contains('rq')){nv.rows[i].q=t.value;calc()}else if(t.id=='q')srch()});
+document.addEventListener('change',e=>{if(e.target.id=='ms'){mSel=e.target.value;go('mv')}if(e.target.id=='cs'){cSel=e.target.value;go('ca')}});
+go('home');
+</script></body></html>
